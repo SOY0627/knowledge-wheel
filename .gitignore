@@ -1,0 +1,8 @@
+node_modules
+dist
+build
+*.local
+.DS_Store
+Thumbs.db
+.transfer/
+wheel-src.tgz

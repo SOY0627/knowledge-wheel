@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>知识转盘 · Knowledge Studio</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0D0D0D;
+      --surface: #111111;
+      --surface-2: #161616;
+      --border: #1E1E1E;
+      --border-2: #2A2A2A;
+      --text: #E8E0D5;
+      --text-muted: #888888;
+      --text-dim: #555555;
+      --text-faint: #333333;
+      --accent: #E8E0D5;
+    }
+
+    html { font-size: 16px; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Helvetica Neue', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2A2A2A; border-radius: 2px; }
+
+    /* ── Layout ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13,13,13,0.92);
+      backdrop-filter: blur(12px);
+    }
+    .header-inner {
+      max-width: 680px; margin: 0 auto;
+      padding: 18px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo-title {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--text);
+    }
+    .logo-sub {
+      font-size: 10px; color: var(--text-faint);
+      letter-spacing: 0.1em; margin-top: 3px;
+    }
+    .btn-reset {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--text-dim);
+      letter-spacing: 0.1em; background: none; border: none;
+      cursor: pointer; transition: color 0.2s;
+    }
+    .btn-reset:hover { color: var(--text-muted); }
+    .btn-reset svg { width: 12px; height: 12px; }
+
+    main {
+      flex: 1; max-width: 680px;
+      margin: 0 auto; width: 100%;
+      padding: 40px 24px;
+      display: flex; flex-direction: column; gap: 32px;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 20px;
+      text-align: center;
+      font-size: 10px; color: #222;
+      letter-spacing: 0.12em; text-transform: uppercase;
+    }
+
+    /* ── Step Indicator ── */
+    .steps {
+      display: flex; align-items: center; width: 100%;
+    }
+    .step-item {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 6px; flex: 1;
+    }
+    .step-icon {
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid #222; transition: all 0.3s;
+    }
+    .step-icon.active {
+      background: var(--accent); border-color: transparent;
+    }
+    .step-icon.done {
+      background: #1A1A1A; border-color: #333;
+    }
+    .step-icon svg { width: 14px; height: 14px; }
+    .step-icon.active svg { color: #111; }
+    .step-icon.done svg { color: #666; }
+    .step-icon:not(.active):not(.done) svg { color: #2A2A2A; }
+    .step-label {
+      font-size: 9px; letter-spacing: 0.06em;
+      text-align: center; white-space: nowrap;
+    }
+    .step-label.active { color: var(--text); }
+    .step-label.done { color: #444; }
+    .step-label:not(.active):not(.done) { color: #222; }
+    .step-connector {
+      flex: 1; height: 1px;
+      max-width: 40px; margin-bottom: 16px;
+    }
+    @media (max-width: 480px) {
+      .step-label { display: none; }
+    }
+
+    /* ── Section Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 24px;
+    }
+    .card-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 20px;
+    }
+    .card-bar {
+      width: 3px; height: 16px;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+    .card-title {
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* ── Spin Wheel Step ── */
+    .spin-intro { text-align: center; }
+    .spin-intro h2 {
+      font-size: 26px; font-weight: 300;
+      letter-spacing: 0.06em; margin-bottom: 12px;
+      color: var(--text);
+    }
+    .spin-intro p {
+      font-size: 13px; color: var(--text-dim);
+      line-height: 1.9; max-width: 380px; margin: 0 auto;
+    }
+    .wheel-wrap {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 24px;
+    }
+    .canvas-wrap { position: relative; }
+    canvas { display: block; border-radius: 50%; }
+    .pointer {
+      position: absolute; top: 50%; right: -2px;
+      transform: translateY(-50%);
+      width: 0; height: 0;
+      border-top: 10px solid transparent;
+      border-bottom: 10px solid transparent;
+      border-right: 22px solid var(--accent);
+    }
+    .btn-spin {
+      padding: 11px 36px;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      background: var(--accent); color: #111;
+      border: none; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-spin:disabled {
+      background: #1E1E1E; color: #444; cursor: not-allowed;
+    }
+    .cat-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    }
+    .cat-tag {
+      padding: 10px;
+      text-align: center;
+      font-size: 11px; letter-spacing: 0.05em;
+      background: #0E0E0E; border: 1px solid #1A1A1A;
+      color: var(--text-dim);
+    }
+
+    /* ── Concept Card ── */
+    .concept-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border-2);
+      padding: 24px;
+    }
+    .concept-badge {
+      display: inline-block;
+      padding: 4px 10px; font-size: 10px;
+      font-weight: 500; letter-spacing: 0.1em;
+      margin-bottom: 16px; border: 1px solid;
+    }
+    .concept-name {
+      font-size: 24px; font-weight: 300;
+      letter-spacing: 0.05em; margin-bottom: 12px;
+      color: var(--text);
+    }
+    .concept-desc {
+      font-size: 13px; color: #666; line-height: 1.9;
+    }
+
+    /* ── Timer ── */
+    .timer-wrap {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 24px;
+    }
+    .timer-hint {
+      font-size: 10px; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--text-dim);
+      text-align: center; margin-bottom: 8px;
+    }
+    .timer-ring { position: relative; }
+    .timer-ring svg { display: block; }
+    .timer-center {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .timer-digits {
+      font-size: 30px; font-weight: 300;
+      letter-spacing: 0.06em; color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .timer-label {
+      font-size: 10px; color: #555;
+      letter-spacing: 0.12em; margin-top: 4px;
+    }
+    .timer-done-msg {
+      font-size: 13px; color: var(--text-muted);
+      letter-spacing: 0.05em; text-align: center;
+    }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 24px;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      background: var(--accent); color: #111;
+      border: none; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 24px;
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      background: #1A1A1A; color: #666;
+      border: 1px solid #2A2A2A; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { color: #888; }
+    .btn-icon {
+      display: flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px;
+      background: var(--accent); color: #111;
+      border: none; cursor: pointer; flex-shrink: 0;
+      transition: opacity 0.2s;
+    }
+    .btn-icon:hover { opacity: 0.85; }
+    .btn-icon svg { width: 14px; height: 14px; }
+
+    /* ── Dialog / Chat ── */
+    .dialog-area {
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .msg {
+      padding: 14px 16px;
+      font-size: 13px; line-height: 1.85;
+    }
+    .msg-ai {
+      background: var(--surface-2); color: #AAA;
+      border-left: 2px solid var(--border-2);
+    }
+    .msg-user {
+      background: #1C1C1C; color: #CCC;
+    }
+    .input-row {
+      display: flex; gap: 8px; align-items: flex-end;
+    }
+    textarea {
+      flex: 1; padding: 12px 14px;
+      font-size: 13px; line-height: 1.8;
+      background: #111; color: #CCC;
+      border: 1px solid var(--border-2);
+      resize: none; outline: none;
+      font-family: inherit;
+      min-height: 88px;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: #3A3A3A; }
+    textarea::placeholder { color: #3A3A3A; }
+    .scroll-box {
+      max-height: 320px; overflow-y: auto;
+      padding-right: 4px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+
+    /* ── Deep Explain Accordion ── */
+    .deep-hint {
+      font-size: 10px; color: #444;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .accordion { display: flex; flex-direction: column; gap: 6px; }
+    .acc-item { border: 1px solid var(--border-2); }
+    .acc-trigger {
+      width: 100%; display: flex;
+      align-items: center; justify-content: space-between;
+      padding: 14px 16px;
+      background: var(--bg); border: none; cursor: pointer;
+      text-align: left; transition: background 0.2s;
+    }
+    .acc-trigger.open { background: var(--surface-2); }
+    .acc-trigger-label {
+      font-size: 12px; font-weight: 500;
+      letter-spacing: 0.06em;
+      color: #666; transition: color 0.2s;
+    }
+    .acc-trigger.open .acc-trigger-label { color: var(--text); }
+    .acc-trigger svg { width: 13px; height: 13px; color: #3A3A3A; flex-shrink: 0; }
+    .acc-content {
+      padding: 14px 16px;
+      font-size: 13px; color: #999; line-height: 1.9;
+      background: var(--surface-2);
+      border-top: 1px solid #1E1E1E;
+      display: none;
+    }
+    .acc-content.open { display: block; }
+
+    /* ── Complete Banner ── */
+    .complete-banner {
+      padding: 28px 24px;
+      text-align: center;
+      background: #091209; border: 1px solid #152315;
+    }
+    .complete-title {
+      font-size: 13px; color: #7AB87A;
+      letter-spacing: 0.06em; margin-bottom: 6px;
+    }
+    .complete-sub {
+      font-size: 11px; color: #4A7A4A;
+      margin-bottom: 20px;
+    }
+
+    /* ── Check badge ── */
+    .check-badge {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 16px;
+      background: #091209; color: #7AB87A;
+      font-size: 13px;
+    }
+    .check-badge svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    /* ── Intro label ── */
+    .intro-label {
+      font-size: 13px; color: var(--text-muted);
+      line-height: 1.85; margin-bottom: 16px;
+    }
+    .intro-label span { color: var(--text); }
+
+    /* ── Responsive ── */
+    @media (max-width: 560px) {
+      main { padding: 28px 16px; gap: 24px; }
+      .header-inner { padding: 14px 16px; }
+      .card { padding: 18px 16px; }
+      .concept-card { padding: 18px 16px; }
+      .concept-name { font-size: 20px; }
+      .cat-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      canvas { width: 240px !important; height: 240px !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="header-inner">
+    <div>
+      <div class="logo-title">知识转盘</div>
+      <div class="logo-sub">Personal Knowledge Studio</div>
+    </div>
+    <button class="btn-reset" id="btnReset" style="display:none" onclick="resetAll()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+        <path d="M3 3v5h5"/>
+      </svg>
+      重新开始
+    </button>
+  </div>
+</header>
+
+<!-- ── Main ── -->
+<main>
+
+  <!-- Step Indicator -->
+  <div class="steps" id="stepIndicator"></div>
+
+  <!-- ── STEP 0: Spin ── -->
+  <div id="view-spin">
+    <div class="spin-intro" style="margin-bottom:32px">
+      <h2>今天学什么？</h2>
+      <p>转动转盘，从38个精选知识概念中随机抽取，开启15分钟不借助AI的深度学习之旅。</p>
+    </div>
+    <div class="wheel-wrap">
+      <div class="canvas-wrap">
+        <canvas id="wheelCanvas" width="280" height="280"></canvas>
+        <div class="pointer"></div>
+      </div>
+      <button class="btn-spin" id="btnSpin" onclick="spinWheel()">转动转盘</button>
+    </div>
+    <div class="cat-grid" style="margin-top:28px">
+      <div class="cat-tag">食 · 住 · 健康</div>
+      <div class="cat-tag">中国史 · 世界史</div>
+      <div class="cat-tag">法律 · 地理 · 博物</div>
+    </div>
+  </div>
+
+  <!-- ── STEP 1: Study ── -->
+  <div id="view-study" style="display:none">
+    <div id="conceptCard1"></div>
+    <div class="card" style="margin-top:20px">
+      <div class="timer-hint">不借助 AI · 15分钟自主探索</div>
+      <div class="timer-wrap">
+        <div class="timer-ring">
+          <svg width="160" height="160" style="transform:rotate(-90deg)">
+            <circle cx="80" cy="80" r="68" fill="none" stroke="#1A1A1A" stroke-width="4"/>
+            <circle id="timerArc" cx="80" cy="80" r="68" fill="none" stroke="#E8E0D5"
+              stroke-width="4" stroke-linecap="round"
+              stroke-dasharray="427.256"
+              stroke-dashoffset="427.256"/>
+          </svg>
+          <div class="timer-center">
+            <div class="timer-digits" id="timerDisplay">15:00</div>
+            <div class="timer-label">自主学习</div>
+          </div>
+        </div>
+        <div id="timerBtns">
+          <button class="btn-primary" id="btnStart" onclick="startTimer()">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            开始计时
+          </button>
+        </div>
+        <p class="timer-done-msg" id="timerDoneMsg" style="display:none">学习时间结束，请分享你的认知。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 2: Socratic ── -->
+  <div id="view-socratic" style="display:none">
+    <div id="conceptCard2"></div>
+    <div class="card" style="margin-top:20px">
+      <div class="card-header">
+        <div class="card-bar"></div>
+        <div class="card-title">苏格拉底追问</div>
+      </div>
+      <!-- Initial input -->
+      <div id="socInitial">
+        <p class="intro-label" id="socIntroText"></p>
+        <textarea id="socInitialInput" placeholder="写下你对这个概念的初步认识..."></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:10px">
+          <button class="btn-primary" onclick="startSocratic()">
+            开始追问
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+      <!-- Dialog -->
+      <div id="socDialog" style="display:none">
+        <div class="scroll-box" id="socScrollBox"></div>
+        <div class="input-row" style="margin-top:12px" id="socInputRow">
+          <textarea id="socInput" placeholder="回答这个问题..." style="min-height:72px"></textarea>
+          <button class="btn-icon" onclick="submitSocratic()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 3: Feynman ── -->
+  <div id="view-feynman" style="display:none">
+    <div id="conceptCard3"></div>
+    <div class="card" style="margin-top:20px">
+      <div class="card-header">
+        <div class="card-bar"></div>
+        <div class="card-title">费曼检验</div>
+      </div>
+      <p class="intro-label" id="feynmanIntroText"></p>
+      <div class="dialog-area" id="feynmanHistory"></div>
+      <div id="feynmanPassed" style="display:none">
+        <div class="check-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          费曼检验通过。你已真正掌握这个概念。
+        </div>
+      </div>
+      <div class="input-row" style="margin-top:12px" id="feynmanInputRow">
+        <textarea id="feynmanInput" placeholder="用最简单的语言解释这个概念..." style="min-height:88px"></textarea>
+        <button class="btn-icon" onclick="submitFeynman()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 4: Deep Explain ── -->
+  <div id="view-deep" style="display:none">
+    <div id="conceptCard4"></div>
+    <div class="card" style="margin-top:20px">
+      <div class="card-header">
+        <div class="card-bar"></div>
+        <div class="card-title">深度讲解</div>
+      </div>
+      <p class="deep-hint">三层递进 · 由浅入深</p>
+      <div class="accordion" id="deepAccordion"></div>
+    </div>
+    <div class="complete-banner" style="margin-top:20px">
+      <div class="complete-title" id="completeTitleText"></div>
+      <div class="complete-sub" id="completeSubText"></div>
+      <button class="btn-primary" onclick="resetAll()">开始新的学习</button>
+    </div>
+  </div>
+
+</main>
+
+<footer>KNOWLEDGE STUDIO · 每次15分钟 · 持续精进</footer>
+
+<script>
+// ════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════
+const CONCEPTS = [
+  { id:1,  category:"食·烹饪",      concept:"美拉德反应",        description:"食材在高温下发生的褐变反应——为何煎牛排产生焦香而非蒸牛排，背后是氨基酸与还原糖的化学之舞。" },
+  { id:2,  category:"食·烹饪",      concept:"乳化作用",           description:"油与水本不相溶，沙拉酱与蛋黄酱是如何借助卵磷脂实现稳定混合的——界面化学的日常奇迹。" },
+  { id:3,  category:"食·生活",      concept:"刀具钝化曲线",       description:"菜刀越磨越钝的真正原因——金属晶体疲劳与正确保养的材料科学。" },
+  { id:4,  category:"食·生活",      concept:"冰箱分区热力学",     description:"冰箱各区温度差异的物理原理及不同食材的最优储存位置。" },
+  { id:5,  category:"住·金融",      concept:"公积金套利窗口",     description:"公积金贷款与商业贷款利率差中隐藏的财务优化策略——你可能每年多付的数万元利息。" },
+  { id:6,  category:"住·金融",      concept:"等额本息的时间代价", description:"银行为何偏好等额本息——揭开还款方式背后的利息计算逻辑与提前还款的真实收益。" },
+  { id:7,  category:"住·建筑",      concept:"承重墙识别术",       description:"如何在图纸缺失的情况下判断一面墙是否为承重墙——建筑结构的视觉密码。" },
+  { id:8,  category:"住·建筑",      concept:"热桥效应",           description:"建筑中热量沿金属结构传导导致结露的现象，以及它对室内环境与建筑寿命的深远影响。" },
+  { id:9,  category:"健康·心理",    concept:"具身认知",           description:"身体姿势如何反向影响情绪与思维——「权力姿势」背后的神经科学与心身双向通道。" },
+  { id:10, category:"健康·心理",    concept:"习得性无助",         description:"塞利格曼的狗实验——重复失控的经历如何使人停止尝试改变，以及走出困境的认知路径。" },
+  { id:11, category:"健康·心理",    concept:"峰终定律",           description:"卡尼曼发现：人类对一段体验的记忆只由峰值与结尾决定，过程时长几乎无关紧要。" },
+  { id:12, category:"健康·运动",    concept:"超量恢复原理",       description:"肌肉在撕裂后为何比之前更强壮——运动科学中的超补偿窗口与训练时机的精确把握。" },
+  { id:13, category:"健康·运动",    concept:"离心收缩悖论",       description:"为何下坡比上坡更伤腿——肌肉拉长时发力的反直觉机制与延迟性肌肉酸痛的真相。" },
+  { id:14, category:"中国史·人物",  concept:"王安石的熵增困境",   description:"变法者与保守派之争的本质——一场关于社会系统稳定性与活力的博弈，而非简单的善恶对立。" },
+  { id:15, category:"中国史·事件",  concept:"推恩令的博弈论",     description:"汉武帝如何用一道看似「恩赐」的命令瓦解诸侯国而不动一兵——制度设计的最高境界。" },
+  { id:16, category:"中国史·典故",  concept:"烽火戏诸侯的信息论", description:"周幽王的失败不是因为好色，而是他破坏了一个信号系统的可信度——信息经济学的历史案例。" },
+  { id:17, category:"中国史·文学",  concept:"红楼梦的食物密码",   description:"贾府餐桌上的菜肴如何精确映射家族的兴衰与人物的命运走向——饮食叙事学。" },
+  { id:18, category:"世界史·思想",  concept:"唯名论与实在论之争", description:"中世纪最重要的哲学争论——「玫瑰之名」背后的认识论分裂，直接影响了近代科学的诞生。" },
+  { id:19, category:"世界史·思想",  concept:"文艺复兴的赞助人体系",description:"美第奇家族如何通过赞助艺术完成政治合法性的建构——权力、金钱与文化的三角方程。" },
+  { id:20, category:"世界史·资本",  concept:"东印度公司的股份制革命",description:"人类第一家跨国公司如何发明了现代资本主义的底层操作系统——风险分散与有限责任的诞生。" },
+  { id:21, category:"世界史·殖民",  concept:"橡胶与比利时的血债",  description:"刚果橡胶采集制度——殖民暴力如何与工业需求深度耦合，一段被长期遮蔽的历史。" },
+  { id:22, category:"世界史·社会",  concept:"新经济政策的妥协逻辑",description:"列宁为何在革命成功后重新引入市场机制——意识形态与现实主义的张力，以及路径依赖的代价。" },
+  { id:23, category:"法律·基础",    concept:"法律拟制",           description:"法律如何将明知不真实的事情视为真实——法律技术中的「善意谎言」与制度性虚构。" },
+  { id:24, category:"法律·基础",    concept:"举证责任的分配哲学", description:"为何某些案件由原告举证、某些由被告举证——背后的价值判断、制度设计与权力关系。" },
+  { id:25, category:"法律·基础",    concept:"物权追及效力",       description:"为何将房产卖给他人后原债权人仍可追回——追及力的边界、交易安全与产权保护的张力。" },
+  { id:26, category:"法政·财经",    concept:"通货膨胀税",         description:"政府如何通过印钞而非征税来悄无声息地转移社会财富——铸币税的现代形态。" },
+  { id:27, category:"法政·薪酬",    concept:"五险一金的缴纳漏洞", description:"社保基数申报中的法律灰色地带及其对个人长期收益的深远影响。" },
+  { id:28, category:"地理·景观",    concept:"喀斯特地貌的时间观", description:"一座溶洞的形成需要多少万年——碳酸盐岩溶解速率与地下景观的塑造机制。" },
+  { id:29, category:"地理·人文",    concept:"季风的文明塑造力",   description:"为何季风区孕育了世界上最密集的古文明——降水规律性与农业国家起源的隐秘关联。" },
+  { id:30, category:"地理·国家",    concept:"飞地的地缘政治逻辑", description:"被他国领土包围的土地——飞地的形成原因与当代外交困境，以及它如何折射历史的偶然性。" },
+  { id:31, category:"地理·风土",    concept:"发酵食物的地理分布", description:"为何寒冷地区的民族更依赖发酵食品——气候与人类食物保存策略的地理人类学。" },
+  { id:32, category:"博物·展品",    concept:"希腊雕塑的失色真相", description:"帕特农神庙的大理石雕像曾是彩色的——古代艺术的「真实」形态与我们的现代误解。" },
+  { id:33, category:"博物·展品",    concept:"青铜器铭文的政治功能",description:"西周青铜器上的铭文并非装饰——它们是权力授予的法律文书，是那个时代的「产权证书」。" },
+  { id:34, category:"博物·策略",    concept:"博物馆灯光的欺骗性", description:"展厅照明设计如何影响观众对文物颜色、质感与价值的感知——光与感知的操控艺术。" },
+  { id:35, category:"古书·史记",    concept:"太史公的春秋笔法",   description:"司马迁如何用措辞的微妙差异表达对历史人物的褒贬——无字之处的史观与文字的刀锋。" },
+  { id:36, category:"古书·资治通鉴",concept:"司马光的编年体政治学",description:"资治通鉴的选材标准——为何某些重大事件被略去而某些细节被放大，背后是一套帝王学体系。" },
+  { id:37, category:"古书·三国志",  concept:"陈寿的叙事限制",     description:"作为晋臣的陈寿如何在政治压力下书写蜀汉——史料取舍中的自我保护与历史书写的困境。" },
+  { id:38, category:"古书·近代",    concept:"官场现形记的人情拓扑",description:"晚清官场中「关系网络」的运作规则——一部小说里的社会学田野报告，百年后依然有效。" },
+];
+
+const DEEP_CONTENT = {
+  "推恩令的博弈论": [
+    { layer:"表层：政策内容", text:"公元前127年，汉武帝颁布推恩令，规定诸侯王死后，嫡长子继承王位，其余子弟分割封地为侯国。这在形式上是一项慷慨的「恩赐」，让诸侯王难以公开拒绝。" },
+    { layer:"中层：博弈机制", text:"诸侯王若拒绝，将面临政治舆论压力和其他子弟的内部离心；若接受，其封地将随代际自动碎化。汉武帝用制度设计替代了军事征服，代价极低，效果极佳。" },
+    { layer:"深层：制度思想", text:"这是人类历史上最早的「以规则替代暴力」的中央集权案例之一。核心逻辑：让既得利益者自愿参与瓦解自身的游戏。现代商业中的特许经营权稀释机制与此同源。" },
+  ],
+  "习得性无助": [
+    { layer:"表层：实验发现", text:"心理学家塞利格曼将狗置于无法逃脱的电击环境中，之后即使打开逃跑通道，狗也不再尝试逃脱。这一现象被命名为「习得性无助」。" },
+    { layer:"中层：认知机制", text:"重复的失控体验使大脑形成「我的行动与结果无关」的归因模式。这种模式会泛化到其他领域，导致主动性全面下降，是抑郁症的核心认知特征之一。" },
+    { layer:"深层：破解路径", text:"改变习得性无助的关键不是鼓励，而是「可控的成功体验」——让人重新建立「行动-结果」的正向连接。这也是为什么好的教育系统会设计难度梯度，而非直接表扬。" },
+  ],
+};
+
+const getCategoryColor = (cat) => {
+  const map = { "食":"#8B7355","住":"#6B8CAE","健康":"#7A9E7E","中国史":"#C17B50","世界史":"#9B6B8A","法律":"#5B7B9B","法政":"#5B7B9B","地理":"#6B9B8A","博物":"#A0896B","古书":"#8B7B6B" };
+  const key = Object.keys(map).find(k => cat.startsWith(k));
+  return key ? map[key] : "#888";
+};
+
+const getDeepContent = (concept) => {
+  if (DEEP_CONTENT[concept.concept]) return DEEP_CONTENT[concept.concept];
+  return [
+    { layer:"表层：基本定义", text:`「${concept.concept}」——${concept.description}。这是你首先需要掌握的最直接的含义，也是与他人沟通时的共同语言。` },
+    { layer:"中层：运作机制", text:`深入来看，${concept.category}领域中，这个概念背后有一套完整的逻辑链条。它并不孤立存在，而是与该领域的核心规律紧密相连。理解它的运作方式，需要追问「为什么是这样，而不是别的方式」。` },
+    { layer:"深层：知识迁移", text:`掌握这个概念的最高境界，是能把它的底层逻辑迁移到陌生领域。每一个知识点都是一张思维地图，帮助你在未来遭遇相似结构的问题时，拥有比他人更快的理解速度和更深的洞察。` },
+  ];
+};
+
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let currentStep = 0;
+let currentConcept = null;
+let timerInterval = null;
+let timerSeconds = 900;
+let timerRunning = false;
+
+// Socratic
+const SOCRATIC_QUESTIONS = [
+  (c) => `你说你了解了「${c}」，可以用一句话说出它最核心的是什么吗？`,
+  () => `这个概念存在的原因是什么？它解决了什么问题，或者描述了什么现象？`,
+  () => `你能举一个生活中真实存在的例子来说明这个概念吗？`,
+  () => `如果这个概念不存在，或者它的核心机制运作方式完全相反，会发生什么？`,
+  () => `这个概念与你之前知道的哪些知识有关联或者冲突？`,
+];
+let socStep = 0;
+
+// Feynman
+const FEYNMAN_FEEDBACK = [
+  (c) => `你的解释触及了核心，但还有一处关键：「${c}」的机制对非专业人士来说，用「日常类比」会更容易理解。能再试一次，加入一个生活中的比喻吗？`,
+  () => `很好！解释已经相当清晰。最后一步：能说出这个概念对你个人的启示吗？`,
+];
+let feynmanRound = 0;
+
+// ════════════════════════════════════════════
+// STEP INDICATOR
+// ════════════════════════════════════════════
+const STEP_DEFS = [
+  { label:"转盘选题", icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2H3v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V2z"/><line x1="7" y1="16" x2="7.01" y2="16"/><line x1="11" y1="16" x2="11.01" y2="16"/><polyline points="3 8 21 8"/></svg>` },
+  { label:"自主学习", icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>` },
+  { label:"苏格拉底", icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>` },
+  { label:"费曼检验", icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><circle cx="12" cy="12" r="10"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>` },
+  { label:"深度讲解", icon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>` },
+];
+
+function renderStepIndicator() {
+  const el = document.getElementById('stepIndicator');
+  let html = '';
+  STEP_DEFS.forEach((s, i) => {
+    const isActive = i === currentStep;
+    const isDone = i < currentStep;
+    const iconCls = isActive ? 'active' : isDone ? 'done' : '';
+    const lblCls = isActive ? 'active' : isDone ? 'done' : '';
+    html += `<div class="step-item">
+      <div class="step-icon ${iconCls}">${s.icon}</div>
+      <div class="step-label ${lblCls}">${s.label}</div>
+    </div>`;
+    if (i < STEP_DEFS.length - 1) {
+      html += `<div class="step-connector" style="background:${isDone?'#2A2A2A':'#161616'}"></div>`;
+    }
+  });
+  el.innerHTML = html;
+}
+
+// ════════════════════════════════════════════
+// WHEEL
+// ════════════════════════════════════════════
+const WHEEL_SEGMENTS = 12;
+const WHEEL_COLORS = ['#222','#2C2C2C','#181818','#282828','#202020','#303030','#1A1A1A','#262626','#242424','#2E2E2E','#1C1C1C','#2A2A2A'];
+const WHEEL_CATS = ['食·烹饪','食·生活','住·金融','住·建筑','健康·心理','健康·运动','中国史','世界史','法律','地理','博物','古书'];
+let wheelRotation = 0;
+let wheelSpinning = false;
+
+function drawWheel(rot) {
+  const canvas = document.getElementById('wheelCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const size = canvas.width;
+  const c = size / 2;
+  const r = c - 8;
+  ctx.clearRect(0, 0, size, size);
+  const segAngle = (2 * Math.PI) / WHEEL_SEGMENTS;
+  for (let i = 0; i < WHEEL_SEGMENTS; i++) {
+    const sa = rot + i * segAngle;
+    const ea = sa + segAngle;
+    ctx.beginPath();
+    ctx.moveTo(c, c);
+    ctx.arc(c, c, r, sa, ea);
+    ctx.closePath();
+    ctx.fillStyle = WHEEL_COLORS[i];
+    ctx.fill();
+    ctx.strokeStyle = '#0D0D0D';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.save();
+    ctx.translate(c, c);
+    ctx.rotate(sa + segAngle / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#666';
+    ctx.font = '500 9px -apple-system, sans-serif';
+    ctx.fillText(WHEEL_CATS[i], r - 14, 4);
+    ctx.restore();
+  }
+  // Ring
+  ctx.beginPath();
+  ctx.arc(c, c, r, 0, 2 * Math.PI);
+  ctx.strokeStyle = '#1A1A1A';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Center
+  ctx.beginPath();
+  ctx.arc(c, c, 26, 0, 2 * Math.PI);
+  ctx.fillStyle = '#0D0D0D';
+  ctx.fill();
+  ctx.strokeStyle = '#2A2A2A';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function spinWheel() {
+  if (wheelSpinning) return;
+  wheelSpinning = true;
+  document.getElementById('btnSpin').disabled = true;
+  document.getElementById('btnSpin').textContent = '旋转中...';
+  const total = (5 + Math.random() * 5) * 2 * Math.PI + Math.random() * 2 * Math.PI;
+  const duration = 3600;
+  const start = performance.now();
+  const startRot = wheelRotation;
+  function animate(now) {
+    const elapsed = now - start;
+    const p = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - p, 4);
+    wheelRotation = startRot + total * eased;
+    drawWheel(wheelRotation);
+    if (p < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      wheelSpinning = false;
+      const finalAngle = ((wheelRotation % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      const pAngle = (Math.PI * 1.5 - finalAngle + 2 * Math.PI) % (2 * Math.PI);
+      const segAngle = (2 * Math.PI) / WHEEL_SEGMENTS;
+      const segIdx = Math.floor(pAngle / segAngle) % WHEEL_SEGMENTS;
+      const catName = WHEEL_CATS[segIdx];
+      const prefix = catName.split('·')[0];
+      const filtered = CONCEPTS.filter(c => c.category.includes(prefix));
+      const pool = filtered.length > 0 ? filtered : CONCEPTS;
+      currentConcept = pool[Math.floor(Math.random() * pool.length)];
+      setTimeout(() => goToStep(1), 300);
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+// ════════════════════════════════════════════
+// CONCEPT CARD
+// ════════════════════════════════════════════
+function renderConceptCard(targetId) {
+  if (!currentConcept) return;
+  const color = getCategoryColor(currentConcept.category);
+  document.getElementById(targetId).innerHTML = `
+    <div class="concept-card">
+      <span class="concept-badge" style="color:${color};border-color:${color}44;background:${color}11">${currentConcept.category}</span>
+      <div class="concept-name">${currentConcept.concept}</div>
+      <div class="concept-desc">${currentConcept.description}</div>
+    </div>`;
+}
+
+// ════════════════════════════════════════════
+// TIMER
+// ════════════════════════════════════════════
+function updateTimerDisplay() {
+  const mm = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+  const ss = String(timerSeconds % 60).padStart(2, '0');
+  document.getElementById('timerDisplay').textContent = `${mm}:${ss}`;
+  const progress = 1 - timerSeconds / 900;
+  const circumference = 2 * Math.PI * 68;
+  const offset = circumference * (1 - progress);
+  document.getElementById('timerArc').style.strokeDashoffset = offset;
+}
+
+function startTimer() {
+  timerRunning = true;
+  document.getElementById('timerBtns').innerHTML = `
+    <button class="btn-secondary" onclick="stopTimer()">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      结束学习
+    </button>`;
+  timerInterval = setInterval(() => {
+    timerSeconds--;
+    updateTimerDisplay();
+    if (timerSeconds <= 0) { clearInterval(timerInterval); timerDone(); }
+  }, 1000);
+}
+
+function stopTimer() { clearInterval(timerInterval); timerDone(); }
+
+function timerDone() {
+  timerRunning = false;
+  document.getElementById('timerBtns').style.display = 'none';
+  document.getElementById('timerDoneMsg').style.display = 'block';
+  setTimeout(() => goToStep(2), 1400);
+}
+
+// ════════════════════════════════════════════
+// SOCRATIC
+// ════════════════════════════════════════════
+function startSocratic() {
+  const val = document.getElementById('socInitialInput').value.trim();
+  if (!val) return;
+  document.getElementById('socInitial').style.display = 'none';
+  document.getElementById('socDialog').style.display = 'block';
+  const box = document.getElementById('socScrollBox');
+  box.innerHTML = '';
+  addMsg(box, 'ai', SOCRATIC_QUESTIONS[0](currentConcept.concept));
+  addMsg(box, 'user', val);
+  addMsg(box, 'ai', SOCRATIC_QUESTIONS[1]());
+  socStep = 1;
+  scrollBox(box);
+}
+
+function submitSocratic() {
+  const input = document.getElementById('socInput');
+  const val = input.value.trim();
+  if (!val) return;
+  input.value = '';
+  const box = document.getElementById('socScrollBox');
+  addMsg(box, 'user', val);
+  socStep++;
+  if (socStep < SOCRATIC_QUESTIONS.length) {
+    setTimeout(() => {
+      addMsg(box, 'ai', SOCRATIC_QUESTIONS[socStep]());
+      scrollBox(box);
+    }, 400);
+  } else {
+    setTimeout(() => {
+      addMsg(box, 'ai', '你的思考已经相当深入。现在进入费曼检验——请你像给一个完全不懂的人讲解一样，把这个概念完整地讲述一遍。');
+      document.getElementById('socInputRow').style.display = 'none';
+      scrollBox(box);
+      setTimeout(() => goToStep(3), 1600);
+    }, 400);
+  }
+  scrollBox(box);
+}
+
+// ════════════════════════════════════════════
+// FEYNMAN
+// ════════════════════════════════════════════
+function submitFeynman() {
+  const input = document.getElementById('feynmanInput');
+  const val = input.value.trim();
+  if (!val) return;
+  input.value = '';
+  const hist = document.getElementById('feynmanHistory');
+  addMsg(hist, 'user', val);
+  feynmanRound++;
+  if (feynmanRound < 2) {
+    setTimeout(() => {
+      addMsg(hist, 'ai', FEYNMAN_FEEDBACK[feynmanRound - 1](currentConcept.concept));
+      hist.scrollTop = hist.scrollHeight;
+    }, 400);
+  } else {
+    setTimeout(() => {
+      document.getElementById('feynmanInputRow').style.display = 'none';
+      document.getElementById('feynmanPassed').style.display = 'block';
+      hist.scrollTop = hist.scrollHeight;
+      setTimeout(() => goToStep(4), 1400);
+    }, 400);
+  }
+}
+
+// ════════════════════════════════════════════
+// DEEP EXPLAIN
+// ════════════════════════════════════════════
+function renderDeepExplain() {
+  const layers = getDeepContent(currentConcept);
+  const el = document.getElementById('deepAccordion');
+  el.innerHTML = layers.map((l, i) => `
+    <div class="acc-item">
+      <button class="acc-trigger ${i===0?'open':''}" onclick="toggleAcc(this)" data-idx="${i}">
+        <span class="acc-trigger-label">0${i+1}  ${l.layer}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="acc-chevron">
+          ${i===0 ? '<polyline points="18 15 12 9 6 15"/>' : '<polyline points="6 9 12 15 18 9"/>'}
+        </svg>
+      </button>
+      <div class="acc-content ${i===0?'open':''}">${l.text}</div>
+    </div>`).join('');
+}
+
+function toggleAcc(btn) {
+  const item = btn.parentElement;
+  const content = item.querySelector('.acc-content');
+  const isOpen = btn.classList.contains('open');
+  btn.classList.toggle('open', !isOpen);
+  content.classList.toggle('open', !isOpen);
+  const chevron = btn.querySelector('.acc-chevron');
+  chevron.innerHTML = !isOpen
+    ? '<polyline points="18 15 12 9 6 15"/>'
+    : '<polyline points="6 9 12 15 18 9"/>';
+}
+
+// ════════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════════
+function goToStep(n) {
+  // Hide all views
+  ['spin','study','socratic','feynman','deep'].forEach(v => {
+    document.getElementById('view-' + v).style.display = 'none';
+  });
+  currentStep = n;
+  renderStepIndicator();
+  document.getElementById('btnReset').style.display = n > 0 ? 'flex' : 'none';
+
+  if (n === 0) {
+    document.getElementById('view-spin').style.display = 'block';
+    document.getElementById('btnSpin').disabled = false;
+    document.getElementById('btnSpin').textContent = '转动转盘';
+  } else if (n === 1) {
+    document.getElementById('view-study').style.display = 'block';
+    renderConceptCard('conceptCard1');
+  } else if (n === 2) {
+    document.getElementById('view-socratic').style.display = 'block';
+    renderConceptCard('conceptCard2');
+    document.getElementById('socIntroText').innerHTML = `你在15分钟内学习了「<span>${currentConcept.concept}</span>」。<br>请先告诉我，你从这段学习中获得了什么认知？`;
+  } else if (n === 3) {
+    document.getElementById('view-feynman').style.display = 'block';
+    renderConceptCard('conceptCard3');
+    document.getElementById('feynmanIntroText').innerHTML = `现在进入 <span>费曼检验</span>。<br>请你像给一个完全不懂的人讲解一样，用最简单的语言解释「<span>${currentConcept.concept}</span>」。`;
+  } else if (n === 4) {
+    document.getElementById('view-deep').style.display = 'block';
+    renderConceptCard('conceptCard4');
+    renderDeepExplain();
+    document.getElementById('completeTitleText').textContent = '本次学习完成';
+    document.getElementById('completeSubText').textContent = `你已完成对「${currentConcept.concept}」的完整学习循环`;
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetAll() {
+  clearInterval(timerInterval);
+  timerSeconds = 900; timerRunning = false;
+  socStep = 0; feynmanRound = 0;
+  currentConcept = null;
+  // Reset timer UI
+  document.getElementById('timerDisplay').textContent = '15:00';
+  document.getElementById('timerArc').style.strokeDashoffset = '427.256';
+  document.getElementById('timerBtns').style.display = 'flex';
+  document.getElementById('timerBtns').innerHTML = `<button class="btn-primary" id="btnStart" onclick="startTimer()"><svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><polygon points="5 3 19 12 5 21 5 3"/></svg>开始计时</button>`;
+  document.getElementById('timerDoneMsg').style.display = 'none';
+  // Reset socratic
+  document.getElementById('socInitial').style.display = 'block';
+  document.getElementById('socInitialInput').value = '';
+  document.getElementById('socDialog').style.display = 'none';
+  document.getElementById('socScrollBox').innerHTML = '';
+  document.getElementById('socInputRow').style.display = 'flex';
+  // Reset feynman
+  document.getElementById('feynmanHistory').innerHTML = '';
+  document.getElementById('feynmanInput').value = '';
+  document.getElementById('feynmanInputRow').style.display = 'flex';
+  document.getElementById('feynmanPassed').style.display = 'none';
+  goToStep(0);
+}
+
+// ════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════
+function addMsg(container, role, text) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'ai' ? 'msg-ai' : 'msg-user');
+  div.textContent = text;
+  container.appendChild(div);
+}
+function scrollBox(el) { el.scrollTop = el.scrollHeight; }
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+renderStepIndicator();
+drawWheel(0);
+</script>
+</body>
+</html>
