@@ -16,6 +16,12 @@
 - Tailwind CSS + shadcn/ui
 - framer-motion、react-router-dom
 
+## 在线访问
+
+🚀 **[https://soy0627.github.io/knowledge-wheel/](https://soy0627.github.io/knowledge-wheel/)**
+
+站点由 `gh-pages` 分支托管（`npm run build` 后将 `dist/` 内容推送到该分支即可更新线上页面）。
+
 ## 本地开发
 
 ```bash
